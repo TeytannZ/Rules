@@ -165,3 +165,20 @@ export async function resetAllFirestoreData(): Promise<void> {
     throw error
   }
 }
+
+export async function getAllUsers(): Promise<User[]> {
+  try {
+    const usersSnapshot = await getDocs(collection(db, "users"))
+    const users = usersSnapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        ...data,
+        createdAt: data.createdAt.toDate(),
+      } as User
+    })
+    return users
+  } catch (error) {
+    console.error("[v0] Error getting users:", error)
+    return []
+  }
+}
