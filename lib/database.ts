@@ -1,31 +1,19 @@
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  getDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  setDoc,
+  Timestamp,
+} from "firebase/firestore"
+import { db } from "./firebase"
 import type { Rule } from "./types"
-
-// localStorage keys
-const RULES_KEY = "approval_system_rules"
-const MESSAGES_KEY = "approval_system_messages"
-const USERS_KEY = "approval_system_users"
-const APPROVALS_KEY = "approval_system_approvals"
-const SETTINGS_KEY = "approval_system_settings"
-
-// Helper functions for localStorage
-function getFromStorage<T>(key: string, defaultValue: T): T {
-  if (typeof window === "undefined") return defaultValue
-  try {
-    const item = localStorage.getItem(key)
-    return item ? JSON.parse(item) : defaultValue
-  } catch {
-    return defaultValue
-  }
-}
-
-function saveToStorage<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error("Error saving to localStorage:", error)
-  }
-}
 
 export interface UserData {
   username: string
@@ -55,122 +43,145 @@ export interface SystemSettings {
   allowedUsers: string[]
 }
 
+// Helper function to convert Firestore timestamp to Date
+function convertTimestamp(timestamp: any): Date {
+  if (timestamp?.toDate) {
+    return timestamp.toDate()
+  }
+  if (timestamp instanceof Date) {
+    return timestamp
+  }
+  if (typeof timestamp === "string") {
+    return new Date(timestamp)
+  }
+  return new Date()
+}
+
 // Rule functions
 export async function addRule(content: string, order: number, title?: string, isNew = false): Promise<void> {
-  const rules = getFromStorage<Rule[]>(RULES_KEY, [])
-  const rule: Rule = {
-    id: Date.now().toString(),
-    content,
-    order,
-    title,
-    isNew: isNew,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  try {
+    const rule = {
+      content,
+      order,
+      title,
+      isNew,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }
+
+    await addDoc(collection(db, "rules"), rule)
+    console.log("Rule added successfully")
+  } catch (error) {
+    console.error("Error adding rule:", error)
+    throw error
   }
-
-  rules.push(rule)
-  saveToStorage(RULES_KEY, rules)
-
-  // Trigger storage event for real-time updates
-  window.dispatchEvent(
-    new StorageEvent("storage", {
-      key: RULES_KEY,
-      newValue: JSON.stringify(rules),
-      storageArea: localStorage,
-    }),
-  )
-
-  console.log("Rule added with ID: ", rule.id)
 }
 
 export async function updateRule(id: string, content: string, title?: string, markAsNew?: boolean): Promise<void> {
-  const rules = getFromStorage<Rule[]>(RULES_KEY, [])
-  const ruleIndex = rules.findIndex((rule) => rule.id === id)
-
-  if (ruleIndex !== -1) {
-    rules[ruleIndex] = {
-      ...rules[ruleIndex],
+  try {
+    const ruleRef = doc(db, "rules", id)
+    const updateData: any = {
       content,
       title,
-      updatedAt: new Date(),
-      ...(markAsNew !== undefined && { isNew: markAsNew }),
+      updatedAt: Timestamp.now(),
     }
-    saveToStorage(RULES_KEY, rules)
 
-    // Trigger storage event for real-time updates
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: RULES_KEY,
-        newValue: JSON.stringify(rules),
-        storageArea: localStorage,
-      }),
-    )
+    if (markAsNew !== undefined) {
+      updateData.isNew = markAsNew
+    }
+
+    await updateDoc(ruleRef, updateData)
+    console.log("Rule updated successfully")
+  } catch (error) {
+    console.error("Error updating rule:", error)
+    throw error
   }
 }
 
 export async function getRules(): Promise<Rule[]> {
-  return getFromStorage<Rule[]>(RULES_KEY, [])
+  try {
+    const q = query(collection(db, "rules"), orderBy("order", "asc"))
+    const querySnapshot = await getDocs(q)
+
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: convertTimestamp(doc.data().createdAt),
+      updatedAt: convertTimestamp(doc.data().updatedAt),
+    })) as Rule[]
+  } catch (error) {
+    console.error("Error getting rules:", error)
+    return []
+  }
 }
 
 export async function deleteRule(id: string): Promise<void> {
-  const rules = getFromStorage<Rule[]>(RULES_KEY, [])
-  const filteredRules = rules.filter((rule) => rule.id !== id)
-  saveToStorage(RULES_KEY, filteredRules)
-
-  // Trigger storage event for real-time updates
-  window.dispatchEvent(
-    new StorageEvent("storage", {
-      key: RULES_KEY,
-      newValue: JSON.stringify(filteredRules),
-      storageArea: localStorage,
-    }),
-  )
+  try {
+    await deleteDoc(doc(db, "rules", id))
+    console.log("Rule deleted successfully")
+  } catch (error) {
+    console.error("Error deleting rule:", error)
+    throw error
+  }
 }
 
 export function subscribeToRules(callback: (rules: Rule[]) => void): () => void {
-  // Initial call
-  getRules().then(callback)
+  const q = query(collection(db, "rules"), orderBy("order", "asc"))
 
-  // Listen for storage changes
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === RULES_KEY) {
-      getRules().then(callback)
-    }
-  }
+  return onSnapshot(
+    q,
+    (querySnapshot) => {
+      const rules = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: convertTimestamp(doc.data().createdAt),
+        updatedAt: convertTimestamp(doc.data().updatedAt),
+      })) as Rule[]
 
-  window.addEventListener("storage", handleStorageChange)
-
-  // Return unsubscribe function
-  return () => {
-    window.removeEventListener("storage", handleStorageChange)
-  }
+      callback(rules)
+    },
+    (error) => {
+      console.error("Error in rules subscription:", error)
+      callback([])
+    },
+  )
 }
 
 export async function getUserData(username: string): Promise<UserData | null> {
-  const users = getFromStorage<UserData[]>(USERS_KEY, [])
-  return users.find((user) => user.username === username) || null
+  try {
+    const docRef = doc(db, "users", username)
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      const data = docSnap.data()
+      return {
+        ...data,
+        rulesAgreedAt: data.rulesAgreedAt ? convertTimestamp(data.rulesAgreedAt) : undefined,
+      } as UserData
+    }
+    return null
+  } catch (error) {
+    console.error("Error getting user data:", error)
+    return null
+  }
 }
 
 export async function updateUserData(username: string, data: Partial<UserData>): Promise<void> {
-  const users = getFromStorage<UserData[]>(USERS_KEY, [])
-  const userIndex = users.findIndex((user) => user.username === username)
+  try {
+    const userRef = doc(db, "users", username)
+    const updateData = { ...data }
 
-  if (userIndex !== -1) {
-    users[userIndex] = { ...users[userIndex], ...data }
-  } else {
-    users.push({ username, isAdmin: false, hasAgreedToRules: false, ...data } as UserData)
+    // Convert Date objects to Timestamps
+    if (updateData.rulesAgreedAt) {
+      updateData.rulesAgreedAt = Timestamp.fromDate(updateData.rulesAgreedAt) as any
+    }
+
+    await setDoc(userRef, updateData, { merge: true })
+    console.log("User data updated successfully")
+  } catch (error) {
+    console.error("Error updating user data:", error)
+    throw error
   }
-
-  saveToStorage(USERS_KEY, users)
-
-  // Trigger storage event for real-time updates
-  window.dispatchEvent(
-    new StorageEvent("storage", {
-      key: USERS_KEY,
-      newValue: JSON.stringify(users),
-      storageArea: localStorage,
-    }),
-  )
 }
 
 export async function agreeToRules(username: string): Promise<void> {
@@ -181,143 +192,216 @@ export async function agreeToRules(username: string): Promise<void> {
 }
 
 export async function getAllUsers(): Promise<UserData[]> {
-  return getFromStorage<UserData[]>(USERS_KEY, [])
+  try {
+    const querySnapshot = await getDocs(collection(db, "users"))
+    return querySnapshot.docs.map((doc) => ({
+      ...doc.data(),
+      rulesAgreedAt: doc.data().rulesAgreedAt ? convertTimestamp(doc.data().rulesAgreedAt) : undefined,
+    })) as UserData[]
+  } catch (error) {
+    console.error("Error getting all users:", error)
+    return []
+  }
 }
 
 export async function sendMessage(from: string, content: string, isFromAdmin: boolean): Promise<void> {
-  const messages = getFromStorage<Message[]>(MESSAGES_KEY, [])
-  const message: Message = {
-    id: Date.now().toString(),
-    from,
-    content,
-    createdAt: new Date(),
-    isFromAdmin,
-  }
+  try {
+    const message = {
+      from,
+      content,
+      createdAt: Timestamp.now(),
+      isFromAdmin,
+      isRead: false,
+    }
 
-  messages.push(message)
-  saveToStorage(MESSAGES_KEY, messages)
+    await addDoc(collection(db, "messages"), message)
+    console.log("Message sent successfully")
+  } catch (error) {
+    console.error("Error sending message:", error)
+    throw error
+  }
 }
 
 export async function getMessages(): Promise<Message[]> {
-  return getFromStorage<Message[]>(MESSAGES_KEY, [])
+  try {
+    const q = query(collection(db, "messages"), orderBy("createdAt", "desc"))
+    const querySnapshot = await getDocs(q)
+
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: convertTimestamp(doc.data().createdAt),
+    })) as Message[]
+  } catch (error) {
+    console.error("Error getting messages:", error)
+    return []
+  }
 }
 
 export function subscribeToMessages(callback: (messages: Message[]) => void): () => void {
-  // Initial call
-  getMessages().then(callback)
+  const q = query(collection(db, "messages"), orderBy("createdAt", "desc"))
 
-  // Listen for storage changes
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === MESSAGES_KEY) {
-      getMessages().then(callback)
-    }
-  }
+  return onSnapshot(
+    q,
+    (querySnapshot) => {
+      const messages = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: convertTimestamp(doc.data().createdAt),
+      })) as Message[]
 
-  window.addEventListener("storage", handleStorageChange)
-
-  // Return unsubscribe function
-  return () => {
-    window.removeEventListener("storage", handleStorageChange)
-  }
+      callback(messages)
+    },
+    (error) => {
+      console.error("Error in messages subscription:", error)
+      callback([])
+    },
+  )
 }
 
 export async function markMessageAsRead(id: string): Promise<void> {
-  const messages = getFromStorage<Message[]>(MESSAGES_KEY, [])
-  const messageIndex = messages.findIndex((msg) => msg.id === id)
-
-  if (messageIndex !== -1) {
-    messages[messageIndex] = { ...messages[messageIndex], isRead: true } as any
-    saveToStorage(MESSAGES_KEY, messages)
+  try {
+    const messageRef = doc(db, "messages", id)
+    await updateDoc(messageRef, { isRead: true })
+  } catch (error) {
+    console.error("Error marking message as read:", error)
+    throw error
   }
 }
 
 export async function deleteMessage(id: string): Promise<void> {
-  const messages = getFromStorage<Message[]>(MESSAGES_KEY, [])
-  const filteredMessages = messages.filter((msg) => msg.id !== id)
-  saveToStorage(MESSAGES_KEY, filteredMessages)
+  try {
+    await deleteDoc(doc(db, "messages", id))
+    console.log("Message deleted successfully")
+  } catch (error) {
+    console.error("Error deleting message:", error)
+    throw error
+  }
 }
 
 export async function addApproval(username: string, isAdmin: boolean): Promise<void> {
-  const approvals = getFromStorage<Approval[]>(APPROVALS_KEY, [])
-  const approval: Approval = {
-    id: Date.now().toString(),
-    username,
-    approvedAt: new Date(),
-    isAdmin,
+  try {
+    const approval = {
+      username,
+      approvedAt: Timestamp.now(),
+      isAdmin,
+    }
+
+    await addDoc(collection(db, "approvals"), approval)
+    console.log("Approval added successfully")
+  } catch (error) {
+    console.error("Error adding approval:", error)
+    throw error
   }
-
-  approvals.push(approval)
-  saveToStorage(APPROVALS_KEY, approvals)
-
-  // Trigger storage event for real-time updates
-  window.dispatchEvent(
-    new StorageEvent("storage", {
-      key: APPROVALS_KEY,
-      newValue: JSON.stringify(approvals),
-      storageArea: localStorage,
-    }),
-  )
 }
 
 export async function getApprovals(): Promise<Approval[]> {
-  return getFromStorage<Approval[]>(APPROVALS_KEY, [])
+  try {
+    const q = query(collection(db, "approvals"), orderBy("approvedAt", "desc"))
+    const querySnapshot = await getDocs(q)
+
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      approvedAt: convertTimestamp(doc.data().approvedAt),
+    })) as Approval[]
+  } catch (error) {
+    console.error("Error getting approvals:", error)
+    return []
+  }
 }
 
 export function subscribeToApprovals(callback: (approvals: Approval[]) => void): () => void {
-  // Initial call
-  getApprovals().then(callback)
+  const q = query(collection(db, "approvals"), orderBy("approvedAt", "desc"))
 
-  // Listen for storage changes
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === APPROVALS_KEY) {
-      getApprovals().then(callback)
-    }
-  }
+  return onSnapshot(
+    q,
+    (querySnapshot) => {
+      const approvals = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        approvedAt: convertTimestamp(doc.data().approvedAt),
+      })) as Approval[]
 
-  window.addEventListener("storage", handleStorageChange)
-
-  // Return unsubscribe function
-  return () => {
-    window.removeEventListener("storage", handleStorageChange)
-  }
+      callback(approvals)
+    },
+    (error) => {
+      console.error("Error in approvals subscription:", error)
+      callback([])
+    },
+  )
 }
 
 export async function getSystemSettings(): Promise<SystemSettings> {
-  const defaultSettings: SystemSettings = {
-    maxUsers: 5,
-    allowedUsers: ["Ahmed", "User1", "User2", "User3", "User4"],
-  }
+  try {
+    const docRef = doc(db, "settings", "system")
+    const docSnap = await getDoc(docRef)
 
-  return getFromStorage<SystemSettings>(SETTINGS_KEY, defaultSettings)
+    if (docSnap.exists()) {
+      return docSnap.data() as SystemSettings
+    }
+
+    // Return default settings if none exist
+    const defaultSettings: SystemSettings = {
+      maxUsers: 5,
+      allowedUsers: ["Ahmed", "User1", "User2", "User3", "User4"],
+    }
+
+    // Save default settings to Firestore
+    await setDoc(docRef, defaultSettings)
+    return defaultSettings
+  } catch (error) {
+    console.error("Error getting system settings:", error)
+    return {
+      maxUsers: 5,
+      allowedUsers: ["Ahmed", "User1", "User2", "User3", "User4"],
+    }
+  }
 }
 
 export async function updateSystemSettings(settings: SystemSettings): Promise<void> {
-  saveToStorage(SETTINGS_KEY, settings)
+  try {
+    const settingsRef = doc(db, "settings", "system")
+    await setDoc(settingsRef, settings)
+    console.log("System settings updated successfully")
+  } catch (error) {
+    console.error("Error updating system settings:", error)
+    throw error
+  }
 }
 
 export function subscribeToSystemSettings(callback: (settings: SystemSettings) => void): () => void {
-  // Initial call
-  getSystemSettings().then(callback)
+  const docRef = doc(db, "settings", "system")
 
-  // Listen for storage changes
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === SETTINGS_KEY) {
-      getSystemSettings().then(callback)
-    }
-  }
-
-  window.addEventListener("storage", handleStorageChange)
-
-  // Return unsubscribe function
-  return () => {
-    window.removeEventListener("storage", handleStorageChange)
-  }
+  return onSnapshot(
+    docRef,
+    (docSnap) => {
+      if (docSnap.exists()) {
+        callback(docSnap.data() as SystemSettings)
+      } else {
+        // Initialize with default settings
+        const defaultSettings: SystemSettings = {
+          maxUsers: 5,
+          allowedUsers: ["Ahmed", "User1", "User2", "User3", "User4"],
+        }
+        setDoc(docRef, defaultSettings)
+        callback(defaultSettings)
+      }
+    },
+    (error) => {
+      console.error("Error in settings subscription:", error)
+      callback({
+        maxUsers: 5,
+        allowedUsers: ["Ahmed", "User1", "User2", "User3", "User4"],
+      })
+    },
+  )
 }
 
 export async function initializeDefaultRules(): Promise<boolean> {
   try {
-    const existingRules = getFromStorage<Rule[]>(RULES_KEY, [])
-    if (existingRules.length > 0) {
+    const rules = await getRules()
+    if (rules.length > 0) {
       console.log("Rules already exist, skipping initialization")
       return false
     }
@@ -325,83 +409,83 @@ export async function initializeDefaultRules(): Promise<boolean> {
     const defaultRules = [
       {
         title: "1. الضوضاء و أوقات الهدوء",
-        content: `أوقات الهدوء: من 10 مساءً إلى 6 صباحًا → صمت تام.
+        content: `**أوقات الهدوء:** ==من 10 مساءً إلى 6 صباحًا== → صمت تام.
 
-ممنوع الصراخ أو أي صوت مرتفع في أي وقت.
+**ممنوع الصراخ** أو أي صوت مرتفع في أي وقت.
 
 لا دردشات جماعية أو ضحك بصوت مرتفع ليلًا.
 
-يُستثنى من ذلك من لديه امتحانات، عمل، أو يحتاج للراحة.`,
+==يُستثنى من ذلك== من لديه امتحانات، عمل، أو يحتاج للراحة.`,
         order: 1,
       },
       {
         title: "2. الضيوف",
-        content: `يُسمح بالضيوف لكن بشروط:
+        content: `**يُسمح بالضيوف** لكن بشروط:
 
-يجب المغادرة قبل بداية أوقات الهدوء.
+==يجب المغادرة== قبل بداية أوقات الهدوء.
 
-لا زيارات يومية متكررة.
+**لا زيارات يومية متكررة.**
 
-من دعا الضيف يكون مسؤولًا عن أي إزعاج أو مشكلة يسببها.`,
+من دعا الضيف يكون ==مسؤولًا عن أي إزعاج== أو مشكلة يسببها.`,
         order: 2,
       },
       {
         title: "3. المطبخ",
-        content: `الأدوات والأواني تُحفظ دائمًا تحت الحوض.
+        content: `**الأدوات والأواني** تُحفظ دائمًا تحت الحوض.
 
-التوابل (ملح، إلخ) تبقى فوق ليستفيد منها الجميع (إن وافق صاحبها).
+==التوابل== (ملح، إلخ) تبقى فوق ليستفيد منها الجميع (إن وافق صاحبها).
 
-يجب تنظيف كل شيء فور الاستخدام.
+**يجب تنظيف كل شيء** فور الاستخدام.
 
-إذا تُركت أدوات متّسخة → لأي شخص الحق في رميها في الشرفة.
+إذا تُركت أدوات متّسخة → ==لأي شخص الحق في رميها في الشرفة==.
 
-لكل شخص كيس قمامة خاص به (إلا إذا اتفق اثنان على المشاركة).
+**لكل شخص كيس قمامة خاص به** (إلا إذا اتفق اثنان على المشاركة).
 
 كل شخص يرمي قمامته بنفسه.`,
         order: 3,
       },
       {
         title: "4. الثلاجة",
-        content: `إذا لم تُصلح → المساحة الصغيرة تُقسم بالتساوي.
+        content: `إذا لم تُصلح → ==المساحة الصغيرة تُقسم بالتساوي==.
 
-إذا ملأها شخص بأغراضه → للآخرين الحق في ترك طعامهم بالخارج.`,
+إذا ملأها شخص بأغراضه → **للآخرين الحق في ترك طعامهم بالخارج**.`,
         order: 4,
       },
       {
         title: "5. الحمام و المرحاض",
-        content: `امسح الماء عن الأرض بعد الاستحمام أو الاستخدام.
+        content: `**امسح الماء** عن الأرض بعد الاستحمام أو الاستخدام.
 
-يجب إبقاء النافذة مفتوحة دائمًا.
+==يجب إبقاء النافذة مفتوحة دائمًا==.
 
-ممنوع ترك الصابون أو الشامبو بالداخل (المكان ضيق).
+**ممنوع ترك الصابون** أو الشامبو بالداخل (المكان ضيق).
 
-على الجميع استخدام معطّر أو منظّف بين فترة وأخرى لرائحة أفضل.
+على الجميع استخدام ==معطّر أو منظّف== بين فترة وأخرى لرائحة أفضل.
 
-يجب أن يبقى كرسي المرحاض وخرطوم المياه نظيفين دائمًا.
+يجب أن يبقى **كرسي المرحاض وخرطوم المياه** نظيفين دائمًا.
 
 **الأهم: ❌ ممنوع الاستمناء داخل الحمام.**`,
         order: 5,
       },
       {
         title: "6. التنظيف و المنتجات المشتركة",
-        content: `كل شخص ينظف غرفته.
+        content: `**كل شخص ينظف غرفته.**
 
-إذا خرجت رائحة كريهة للممر → يجب تنظيفها فورًا.
+إذا خرجت رائحة كريهة للممر → ==يجب تنظيفها فورًا==.
 
-الأشياء التي تُشترى معًا = استعمالها متاح للجميع.
+**الأشياء التي تُشترى معًا** = استعمالها متاح للجميع.
 
-الاستخدام يكون عادلًا وحسب الحاجة فقط.
+==الاستخدام يكون عادلًا== وحسب الحاجة فقط.
 
-لا يُستهلك كل المنتج مرة واحدة.`,
+**لا يُستهلك كل المنتج مرة واحدة.**`,
         order: 6,
       },
       {
         title: "7. الخصوصية و الاحترام",
-        content: `يجب الطرق قبل دخول أي غرفة.
+        content: `**يجب الطرق** قبل دخول أي غرفة.
 
-ممنوع أخذ أو استعارة أي شيء دون إذن.
+==ممنوع أخذ أو استعارة== أي شيء دون إذن.
 
-إذا حدثت مشكلة → تواصل مباشرة معي أو أرسل رسالة.`,
+إذا حدثت مشكلة → **تواصل مباشرة معي** أو أرسل رسالة.`,
         order: 7,
       },
     ]
