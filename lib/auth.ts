@@ -36,9 +36,9 @@ export const useAuth = create<AuthState>()(
           try {
             const settings = await getSystemSettings()
             allowedUsers = settings.allowedUsers
-            console.log("[v0] Got allowed users from Firebase:", allowedUsers)
+            console.log("[v0] Got allowed users from settings:", allowedUsers)
           } catch (error) {
-            console.log("[v0] Firebase offline, using default allowed users:", allowedUsers)
+            console.log("[v0] Settings offline, using default allowed users:", allowedUsers)
           }
 
           if (!allowedUsers.includes(username)) {
