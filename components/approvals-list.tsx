@@ -64,7 +64,7 @@ export function ApprovalsList() {
                   <div className="flex flex-col items-center text-center space-y-6">
                     <div className="relative">
                       <Image
-                        src="/approved.jpg"
+                        src="/approved.png"
                         alt="Approved"
                         width={140}
                         height={140}
@@ -109,19 +109,19 @@ export function ApprovalsList() {
                               try {
                                 // Handle Firestore timestamp
                                 if (approval.approvedAt.toDate && typeof approval.approvedAt.toDate === "function") {
-                                  return approval.approvedAt.toDate().toLocaleDateString("ar-SA")
+                                  return approval.approvedAt.toDate().toLocaleDateString("en-GB")
                                 }
                                 // Handle regular Date object
                                 if (approval.approvedAt instanceof Date) {
-                                  return approval.approvedAt.toLocaleDateString("ar-SA")
+                                  return approval.approvedAt.toLocaleDateString("en-GB")
                                 }
                                 // Handle date string
                                 if (typeof approval.approvedAt === "string") {
-                                  return new Date(approval.approvedAt).toLocaleDateString("ar-SA")
+                                  return new Date(approval.approvedAt).toLocaleDateString("en-GB")
                                 }
                                 // Handle timestamp number
                                 if (typeof approval.approvedAt === "number") {
-                                  return new Date(approval.approvedAt).toLocaleDateString("ar-SA")
+                                  return new Date(approval.approvedAt).toLocaleDateString("en-GB")
                                 }
                                 return "تاريخ غير معروف"
                               } catch (error) {
