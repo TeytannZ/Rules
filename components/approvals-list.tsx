@@ -64,7 +64,7 @@ export function ApprovalsList() {
                   <div className="flex flex-col items-center text-center space-y-6">
                     <div className="relative">
                       <Image
-                        src="../../public/approved.png"
+                        src="/approved.jpg"
                         alt="Approved"
                         width={140}
                         height={140}
