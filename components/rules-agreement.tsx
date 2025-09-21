@@ -52,7 +52,7 @@ function formatRuleContent(content: string): string {
       const trimmedRule = rule.trim()
       if (!trimmedRule) return ""
 
-      // Process text formatting
+      // Process text formatting for each rule
       const formattedRule = trimmedRule
         .replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: bold; color: #1f2937;">$1</strong>') // Bold
         .replace(
