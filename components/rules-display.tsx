@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { subscribeToRules } from "@/lib/database"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, CheckCircle2, Star, Sparkles } from "lucide-react"
+import { FileText, Star, Sparkles } from "lucide-react"
 import type { Rule } from "@/lib/database"
 import type { JSX } from "react"
 
@@ -32,11 +32,11 @@ function formatRuleContent(content: string): JSX.Element[] {
     return [
       <div
         key="single-rule"
-        className="bg-white border-l-4 border-l-blue-500 rounded-lg p-5 shadow-sm hover:shadow-md transition-all duration-200"
+        className="mb-3 p-4 bg-gradient-to-r from-slate-50 to-blue-50 border-l-4 border-l-blue-500 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
       >
-        <div className="flex items-start space-x-3 space-x-reverse" dir="rtl">
-          <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
-            <CheckCircle2 className="w-4 h-4 text-white" />
+        <div className="flex items-start gap-3 direction-rtl" dir="rtl">
+          <div className="flex-shrink-0 w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm">
+            1
           </div>
           <div className="flex-1 text-gray-700 leading-relaxed text-right">{formatTextContent(content)}</div>
         </div>
@@ -52,10 +52,10 @@ function formatRuleContent(content: string): JSX.Element[] {
       return (
         <div
           key={index}
-          className="bg-white border-l-4 border-l-blue-500 rounded-lg p-5 shadow-sm hover:shadow-md transition-all duration-200 group"
+          className="mb-3 p-4 bg-gradient-to-r from-slate-50 to-blue-50 border-l-4 border-l-blue-500 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
         >
-          <div className="flex items-start space-x-3 space-x-reverse" dir="rtl">
-            <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+          <div className="flex items-start gap-3 direction-rtl" dir="rtl">
+            <div className="flex-shrink-0 w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm">
               {index + 1}
             </div>
             <div className="flex-1 text-gray-700 leading-relaxed text-right">{formatTextContent(trimmedRule)}</div>
