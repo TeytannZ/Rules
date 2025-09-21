@@ -40,6 +40,7 @@ export interface Message {
   content: string
   createdAt: Date
   isFromAdmin: boolean
+  isRead?: boolean
 }
 
 export interface Approval {
@@ -69,6 +70,16 @@ export async function addRule(content: string, order: number, title?: string, is
 
   rules.push(rule)
   saveToStorage(RULES_KEY, rules)
+
+  // Trigger storage event for real-time updates
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key: RULES_KEY,
+      newValue: JSON.stringify(rules),
+      storageArea: localStorage,
+    }),
+  )
+
   console.log("Rule added with ID: ", rule.id)
 }
 
@@ -85,6 +96,15 @@ export async function updateRule(id: string, content: string, title?: string, ma
       ...(markAsNew !== undefined && { isNew: markAsNew }),
     }
     saveToStorage(RULES_KEY, rules)
+
+    // Trigger storage event for real-time updates
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: RULES_KEY,
+        newValue: JSON.stringify(rules),
+        storageArea: localStorage,
+      }),
+    )
   }
 }
 
@@ -96,6 +116,15 @@ export async function deleteRule(id: string): Promise<void> {
   const rules = getFromStorage<Rule[]>(RULES_KEY, [])
   const filteredRules = rules.filter((rule) => rule.id !== id)
   saveToStorage(RULES_KEY, filteredRules)
+
+  // Trigger storage event for real-time updates
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key: RULES_KEY,
+      newValue: JSON.stringify(filteredRules),
+      storageArea: localStorage,
+    }),
+  )
 }
 
 export function subscribeToRules(callback: (rules: Rule[]) => void): () => void {
@@ -133,6 +162,15 @@ export async function updateUserData(username: string, data: Partial<UserData>):
   }
 
   saveToStorage(USERS_KEY, users)
+
+  // Trigger storage event for real-time updates
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key: USERS_KEY,
+      newValue: JSON.stringify(users),
+      storageArea: localStorage,
+    }),
+  )
 }
 
 export async function agreeToRules(username: string): Promise<void> {
@@ -210,6 +248,15 @@ export async function addApproval(username: string, isAdmin: boolean): Promise<v
 
   approvals.push(approval)
   saveToStorage(APPROVALS_KEY, approvals)
+
+  // Trigger storage event for real-time updates
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key: APPROVALS_KEY,
+      newValue: JSON.stringify(approvals),
+      storageArea: localStorage,
+    }),
+  )
 }
 
 export async function getApprovals(): Promise<Approval[]> {
