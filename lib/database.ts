@@ -1,44 +1,276 @@
-import { db } from "./firebaseConfig" // Assuming firebaseConfig is where db is defined
-import { collection, addDoc, doc, updateDoc, getDocs } from "firebase/firestore"
-import type { Rule } from "./types" // Assuming Rule is defined in types.ts
+import type { Rule } from "./types"
 
-// ... existing code ...
+// localStorage keys
+const RULES_KEY = "approval_system_rules"
+const MESSAGES_KEY = "approval_system_messages"
+const USERS_KEY = "approval_system_users"
+const APPROVALS_KEY = "approval_system_approvals"
+const SETTINGS_KEY = "approval_system_settings"
 
+// Helper functions for localStorage
+function getFromStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === "undefined") return defaultValue
+  try {
+    const item = localStorage.getItem(key)
+    return item ? JSON.parse(item) : defaultValue
+  } catch {
+    return defaultValue
+  }
+}
+
+function saveToStorage<T>(key: string, value: T): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.error("Error saving to localStorage:", error)
+  }
+}
+
+export interface UserData {
+  username: string
+  hasAgreedToRules: boolean
+  rulesAgreedAt?: Date
+  isAdmin: boolean
+}
+
+export interface Message {
+  id: string
+  from: string
+  content: string
+  createdAt: Date
+  isFromAdmin: boolean
+}
+
+export interface Approval {
+  id: string
+  username: string
+  approvedAt: Date
+  isAdmin: boolean
+}
+
+export interface SystemSettings {
+  maxUsers: number
+  allowedUsers: string[]
+}
+
+// Rule functions
 export async function addRule(content: string, order: number, title?: string, isNew = false): Promise<void> {
-  const rule: Omit<Rule, "id"> = {
+  const rules = getFromStorage<Rule[]>(RULES_KEY, [])
+  const rule: Rule = {
+    id: Date.now().toString(),
     content,
     order,
     title,
-    isNew: isNew, // Only mark as new if explicitly requested
+    isNew: isNew,
     createdAt: new Date(),
     updatedAt: new Date(),
   }
 
-  const docRef = await addDoc(collection(db, "rules"), rule)
-  console.log("Rule added with ID: ", docRef.id)
+  rules.push(rule)
+  saveToStorage(RULES_KEY, rules)
+  console.log("Rule added with ID: ", rule.id)
 }
 
 export async function updateRule(id: string, content: string, title?: string, markAsNew?: boolean): Promise<void> {
-  const ruleRef = doc(db, "rules", id)
-  const updateData: Partial<Rule> = {
-    content,
-    title,
-    updatedAt: new Date(),
-  }
+  const rules = getFromStorage<Rule[]>(RULES_KEY, [])
+  const ruleIndex = rules.findIndex((rule) => rule.id === id)
 
-  if (markAsNew !== undefined) {
-    updateData.isNew = markAsNew
+  if (ruleIndex !== -1) {
+    rules[ruleIndex] = {
+      ...rules[ruleIndex],
+      content,
+      title,
+      updatedAt: new Date(),
+      ...(markAsNew !== undefined && { isNew: markAsNew }),
+    }
+    saveToStorage(RULES_KEY, rules)
   }
-
-  await updateDoc(ruleRef, updateData)
 }
 
-// ... existing code ...
+export async function getRules(): Promise<Rule[]> {
+  return getFromStorage<Rule[]>(RULES_KEY, [])
+}
+
+export async function deleteRule(id: string): Promise<void> {
+  const rules = getFromStorage<Rule[]>(RULES_KEY, [])
+  const filteredRules = rules.filter((rule) => rule.id !== id)
+  saveToStorage(RULES_KEY, filteredRules)
+}
+
+export function subscribeToRules(callback: (rules: Rule[]) => void): () => void {
+  // Initial call
+  getRules().then(callback)
+
+  // Listen for storage changes
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === RULES_KEY) {
+      getRules().then(callback)
+    }
+  }
+
+  window.addEventListener("storage", handleStorageChange)
+
+  // Return unsubscribe function
+  return () => {
+    window.removeEventListener("storage", handleStorageChange)
+  }
+}
+
+export async function getUserData(username: string): Promise<UserData | null> {
+  const users = getFromStorage<UserData[]>(USERS_KEY, [])
+  return users.find((user) => user.username === username) || null
+}
+
+export async function updateUserData(username: string, data: Partial<UserData>): Promise<void> {
+  const users = getFromStorage<UserData[]>(USERS_KEY, [])
+  const userIndex = users.findIndex((user) => user.username === username)
+
+  if (userIndex !== -1) {
+    users[userIndex] = { ...users[userIndex], ...data }
+  } else {
+    users.push({ username, isAdmin: false, hasAgreedToRules: false, ...data } as UserData)
+  }
+
+  saveToStorage(USERS_KEY, users)
+}
+
+export async function agreeToRules(username: string): Promise<void> {
+  await updateUserData(username, {
+    hasAgreedToRules: true,
+    rulesAgreedAt: new Date(),
+  })
+}
+
+export async function getAllUsers(): Promise<UserData[]> {
+  return getFromStorage<UserData[]>(USERS_KEY, [])
+}
+
+export async function sendMessage(from: string, content: string, isFromAdmin: boolean): Promise<void> {
+  const messages = getFromStorage<Message[]>(MESSAGES_KEY, [])
+  const message: Message = {
+    id: Date.now().toString(),
+    from,
+    content,
+    createdAt: new Date(),
+    isFromAdmin,
+  }
+
+  messages.push(message)
+  saveToStorage(MESSAGES_KEY, messages)
+}
+
+export async function getMessages(): Promise<Message[]> {
+  return getFromStorage<Message[]>(MESSAGES_KEY, [])
+}
+
+export function subscribeToMessages(callback: (messages: Message[]) => void): () => void {
+  // Initial call
+  getMessages().then(callback)
+
+  // Listen for storage changes
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === MESSAGES_KEY) {
+      getMessages().then(callback)
+    }
+  }
+
+  window.addEventListener("storage", handleStorageChange)
+
+  // Return unsubscribe function
+  return () => {
+    window.removeEventListener("storage", handleStorageChange)
+  }
+}
+
+export async function markMessageAsRead(id: string): Promise<void> {
+  const messages = getFromStorage<Message[]>(MESSAGES_KEY, [])
+  const messageIndex = messages.findIndex((msg) => msg.id === id)
+
+  if (messageIndex !== -1) {
+    messages[messageIndex] = { ...messages[messageIndex], isRead: true } as any
+    saveToStorage(MESSAGES_KEY, messages)
+  }
+}
+
+export async function deleteMessage(id: string): Promise<void> {
+  const messages = getFromStorage<Message[]>(MESSAGES_KEY, [])
+  const filteredMessages = messages.filter((msg) => msg.id !== id)
+  saveToStorage(MESSAGES_KEY, filteredMessages)
+}
+
+export async function addApproval(username: string, isAdmin: boolean): Promise<void> {
+  const approvals = getFromStorage<Approval[]>(APPROVALS_KEY, [])
+  const approval: Approval = {
+    id: Date.now().toString(),
+    username,
+    approvedAt: new Date(),
+    isAdmin,
+  }
+
+  approvals.push(approval)
+  saveToStorage(APPROVALS_KEY, approvals)
+}
+
+export async function getApprovals(): Promise<Approval[]> {
+  return getFromStorage<Approval[]>(APPROVALS_KEY, [])
+}
+
+export function subscribeToApprovals(callback: (approvals: Approval[]) => void): () => void {
+  // Initial call
+  getApprovals().then(callback)
+
+  // Listen for storage changes
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === APPROVALS_KEY) {
+      getApprovals().then(callback)
+    }
+  }
+
+  window.addEventListener("storage", handleStorageChange)
+
+  // Return unsubscribe function
+  return () => {
+    window.removeEventListener("storage", handleStorageChange)
+  }
+}
+
+export async function getSystemSettings(): Promise<SystemSettings> {
+  const defaultSettings: SystemSettings = {
+    maxUsers: 5,
+    allowedUsers: ["Ahmed", "User1", "User2", "User3", "User4"],
+  }
+
+  return getFromStorage<SystemSettings>(SETTINGS_KEY, defaultSettings)
+}
+
+export async function updateSystemSettings(settings: SystemSettings): Promise<void> {
+  saveToStorage(SETTINGS_KEY, settings)
+}
+
+export function subscribeToSystemSettings(callback: (settings: SystemSettings) => void): () => void {
+  // Initial call
+  getSystemSettings().then(callback)
+
+  // Listen for storage changes
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === SETTINGS_KEY) {
+      getSystemSettings().then(callback)
+    }
+  }
+
+  window.addEventListener("storage", handleStorageChange)
+
+  // Return unsubscribe function
+  return () => {
+    window.removeEventListener("storage", handleStorageChange)
+  }
+}
 
 export async function initializeDefaultRules(): Promise<boolean> {
   try {
-    const rulesSnapshot = await getDocs(collection(db, "rules"))
-    if (!rulesSnapshot.empty) {
+    const existingRules = getFromStorage<Rule[]>(RULES_KEY, [])
+    if (existingRules.length > 0) {
       console.log("Rules already exist, skipping initialization")
       return false
     }
@@ -128,7 +360,7 @@ export async function initializeDefaultRules(): Promise<boolean> {
     ]
 
     for (const rule of defaultRules) {
-      await addRule(rule.content, rule.order, rule.title, false) // Don't mark as new
+      await addRule(rule.content, rule.order, rule.title, false)
     }
 
     console.log("Default rules initialized successfully")
@@ -138,5 +370,3 @@ export async function initializeDefaultRules(): Promise<boolean> {
     return false
   }
 }
-
-// ... existing code ...
