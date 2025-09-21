@@ -61,7 +61,7 @@ function formatRuleContent(content: string): string {
         ) // Highlight
         .replace(/•\s*(.*?)(?=\n|$)/g, '<div style="margin: 8px 0; padding-left: 16px; color: #374151;">• $1</div>') // Bullet points
 
-      return `<div style="margin-bottom: 16px; padding: 20px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-left: 4px solid #3b82f6; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      return `<div style="margin-bottom: 16px; padding: 20px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-left: 4px solid #3b82f6; border-radius: 12px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
         <div style="display: flex; align-items: flex-start; gap: 16px; direction: rtl;">
           <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
             ${index + 1}
@@ -123,7 +123,7 @@ export function RulesAgreement() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Card className="shadow-lg border border-gray-200 bg-white">
           <CardHeader className="text-center pb-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
             <div className="mx-auto mb-6 w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -137,7 +137,7 @@ export function RulesAgreement() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 p-8">
-            <ScrollArea className="h-96 w-full border-2 border-gray-200 rounded-xl p-6 bg-white shadow-inner">
+            <ScrollArea className="h-[70vh] w-full border-2 border-gray-200 rounded-xl p-6 bg-white shadow-inner">
               <div className="space-y-6" dir="auto">
                 {rules.length === 0 ? (
                   <p className="text-gray-500 text-center py-8" dir="rtl">
