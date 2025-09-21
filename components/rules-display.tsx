@@ -97,7 +97,7 @@ function formatTextContent(text: string): JSX.Element {
 }
 
 function formatInlineText(text: string): JSX.Element {
-  const parts = text.split(/(\\*\\*.*?\\*\\*|==.*?==)/)
+  const parts = text.split(/(\*\*.*?\*\*|==.*?==)/)
 
   return (
     <>
