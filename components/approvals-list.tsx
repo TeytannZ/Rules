@@ -64,7 +64,7 @@ export function ApprovalsList() {
                   <div className="flex flex-col items-center text-center space-y-6">
                     <div className="relative">
                       <Image
-                        src="/approved.png"
+                        src="/approved.jpg"
                         alt="Approved"
                         width={140}
                         height={140}
@@ -104,7 +104,32 @@ export function ApprovalsList() {
 
                       <p className="text-sm text-slate-600 bg-white/60 px-3 py-1 rounded-full">
                         تمت الموافقة في{" "}
-                        {approval.approvedAt?.toDate?.()?.toLocaleDateString("ar-SA") || "تاريخ غير معروف"}
+                        {approval.approvedAt
+                          ? (() => {
+                              try {
+                                // Handle Firestore timestamp
+                                if (approval.approvedAt.toDate && typeof approval.approvedAt.toDate === "function") {
+                                  return approval.approvedAt.toDate().toLocaleDateString("ar-SA")
+                                }
+                                // Handle regular Date object
+                                if (approval.approvedAt instanceof Date) {
+                                  return approval.approvedAt.toLocaleDateString("ar-SA")
+                                }
+                                // Handle date string
+                                if (typeof approval.approvedAt === "string") {
+                                  return new Date(approval.approvedAt).toLocaleDateString("ar-SA")
+                                }
+                                // Handle timestamp number
+                                if (typeof approval.approvedAt === "number") {
+                                  return new Date(approval.approvedAt).toLocaleDateString("ar-SA")
+                                }
+                                return "تاريخ غير معروف"
+                              } catch (error) {
+                                console.error("Error formatting date:", error)
+                                return "تاريخ غير معروف"
+                              }
+                            })()
+                          : "تاريخ غير معروف"}
                       </p>
                     </div>
                   </div>
