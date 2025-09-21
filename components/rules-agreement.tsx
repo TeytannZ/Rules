@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FileText, CheckCircle, Sparkles } from "lucide-react"
-import type { Rule } from "@/lib/database"
+import type { Rule } from "@/lib/types"
 
 function getDefaultRuleTitle(ruleNumber: number): string {
   const defaultTitles = [
