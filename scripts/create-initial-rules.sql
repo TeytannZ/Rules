@@ -100,7 +100,7 @@ INSERT INTO rules (title, content, order, created_at, updated_at) VALUES (
 • تنظيف شامل شهري للمنزل كاملاً<br><br>
 <strong>المنتجات المشتركة:</strong><br>
 • ساهم في شراء منتجات التنظيف<br>
-• أخبر الآخرين عند نفاد المنتجات<br>
+• أخبر الآخرين عند نفا�� المنتجات<br>
 • استخدم المنتجات بحكمة<br><br>
 <strong>المهام الأسبوعية:</strong><br>
 <ul>
