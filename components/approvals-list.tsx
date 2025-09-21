@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Shield, User, CheckCircle, Crown, Star, Sparkles } from "lucide-react"
 import type { Approval } from "@/lib/database"
-import Image from "next/image"
 
 export function ApprovalsList() {
   const [approvals, setApprovals] = useState<Approval[]>([])
@@ -63,15 +62,15 @@ export function ApprovalsList() {
 
                   <div className="flex flex-col items-center text-center space-y-6">
                     <div className="relative">
-                      <Image
-                        src="/approved.png"
-                        alt="Approved"
-                        width={140}
-                        height={140}
-                        className={`rounded-full border-4 shadow-2xl transition-all hover:scale-110 duration-300 ${
-                          approval.isAdmin ? "border-amber-400 shadow-amber-300" : "border-green-400 shadow-green-300"
-                        }`}
-                      />
+                      <img
+     src="/approved.png"
+     alt="Approved"
+     width={140}
+     height={140}
+     className={`rounded-full border-4 shadow-2xl transition-all hover:scale-110 duration-300 ${
+       approval.isAdmin ? "border-amber-400 shadow-amber-300" : "border-green-400 shadow-green-300"
+     }`}
+   />
                       {approval.isAdmin && (
                         <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-4 border-white shadow-2xl">
                           <Shield className="w-6 h-6 text-white" />
